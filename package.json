@@ -1,0 +1,25 @@
+{
+  "name": "com.iam1337.extapi",
+  "displayName": "extApi",
+  "version": "1.0.0",
+  "unity": "2022.1",
+  "description": "extApi - ...",
+  "license": "MIT",
+  "author": "dr. ext <ext@iron-wall.org> (https://github.com/iam1337)",
+  "keywords": [
+    "api",
+    "http"
+    "network",
+    "editor"
+  ],
+  "category": "Network",
+  "samples": [
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iam1337/extApi.git#upm"
+  },
+  "publishConfig": {
+    "registry": "https://package.openupm.com"
+  }
+}
