@@ -12,14 +12,14 @@ jobs:
       PROJECT_NAME: extApi
       PROJECT_ASSETS: README.md:CHANGELOG.md:LICENSE
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Semantic Release
       id: semantic
-      uses: cycjimmy/semantic-release-action@v3
+      uses: cycjimmy/semantic-release-action@v4
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        branch: master
+        branch: main
         extra_plugins: |
           @semantic-release/changelog 
           @semantic-release/git
