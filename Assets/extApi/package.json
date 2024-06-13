@@ -13,8 +13,7 @@
     "editor"
   ],
   "category": "Network",
-  "samples": [
-  ],
+  "samples": [],
   "repository": {
     "type": "git",
     "url": "https://github.com/iam1337/extApi.git#upm"
