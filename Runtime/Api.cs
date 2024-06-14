@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace extApi
@@ -18,23 +19,59 @@ namespace extApi
         private CancellationToken _listenerCancellationToken;
 
         private readonly ApiRouteNode _root = new("/");
+        private readonly ThreadMode _threadMode;
+        private readonly object _threadLock = new();
+        private readonly Queue<HttpListenerContext> _threadQueue = new();
 
-        public void Listen(IPAddress address, ushort port)
+        public Api() : this(ThreadMode.OtherThread) { }
+        public Api(ThreadMode mode) => _threadMode = mode;
+
+        public void Listen(ushort port, params IPAddress[] addresses)
         {
             if (_listener != null)
                 throw new Exception("Already started");
 
             _listener = new HttpListener();
-            _listener.Prefixes.Add($"http://{address}:{port}/");
+            foreach (var address in addresses)
+                _listener.Prefixes.Add($"http://{address}:{port}/");
             _listener.Start();
 
             _listenerCancellationSource = new CancellationTokenSource();
             _listenerCancellationToken = _listenerCancellationSource.Token;
             _listenerThread = new Thread(ListenProcess);
+            _listenerThread.Name = "extApi Thread";
             _listenerThread.Start();
         }
+        
+        public void Update()
+        {
+            if (_threadMode != ThreadMode.MainThread)
+                throw new Exception($"Available only in {nameof(ThreadMode.MainThread)} mode");
 
-        public void AddController(IApiController controller)
+            while (true)
+            {
+                var context = (HttpListenerContext) null;
+                lock (_threadLock)
+                {
+                    if (!_threadQueue.TryDequeue(out context))
+                        break;
+                }
+
+                ProcessContext(context);
+            }
+        }
+
+        public void Close()
+        {
+            _listener?.Stop();
+            _listener = null;
+            _listenerCancellationSource.Cancel();
+            _listenerCancellationSource = null;
+            _listenerThread.Abort();
+            _listenerThread = null;
+        }
+
+        public void AddController(object controller)
         {
             var controllerType = controller.GetType();
             var controllerRouteAttributes = controllerType.GetCustomAttributes<ApiRouteAttribute>().ToList();
@@ -55,13 +92,12 @@ namespace extApi
                     foreach (var methodAttribute in methodAttributes)
                     {
                         var routePath = ApiUtils.Combine(routeAttribute.Route, methodAttribute.Template);
-                        var routeNode = GetRouteNode(routePath, true);
+                        var routeNode = CreateRouteNode(routePath);
                         if (routeNode == null)
                             throw new Exception($"Route build failed");
 
                         if (routeNode.Methods.ContainsKey(methodAttribute.Method))
-                            throw new Exception(
-                                $"Path \"{routePath}\" already has \"{methodAttribute.Method}\" method");
+                            throw new Exception($"Path \"{routePath}\" already has \"{methodAttribute.Method}\" method");
 
                         routeNode.Methods.Add(methodAttribute.Method, new ApiRouteTarget
                         {
@@ -81,51 +117,21 @@ namespace extApi
                 try
                 {
                     var context = _listener.GetContext();
-                    var contextMethod = new HttpMethod(context.Request.HttpMethod);
 
-                    var routeUri = context.Request.Url;
-                    var routeParameters = new Dictionary<string, string>();
-                    var target = GetRouteTarget(contextMethod, routeUri.Segments, routeParameters);
-                    if (target != null)
+                    if (_threadMode == ThreadMode.OtherThread)
                     {
-                        try
-                        {
-                            var result = target.Invoke(context, routeParameters);
-
-                            context.Response.ContentType = "application/json";
-                            context.Response.StatusCode = (int)result.StatusCode;
-
-                            if (result.Result != null)
-                            {
-                                var json = JsonUtility.ToJson(result.Result, false);
-                                var jsonData = Encoding.UTF8.GetBytes(json);
-
-                                context.Response.ContentLength64 = jsonData.Length;
-                                context.Response.OutputStream.Write(jsonData);
-                                context.Response.OutputStream.Flush();
-                            }
-
-                            context.Response.Close();
-                        }
-                        catch (Exception e)
-                        {
-                            Debug.LogError(e);
-
-                            context.Response.ContentType = "application/json";
-                            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                            context.Response.Close();
-                        }
+                        ProcessContext(context); // TODO: Сделать асинхронный отлов. 
                     }
                     else
                     {
-                        context.Response.ContentType = "application/json";
-                        context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                        context.Response.Close();
+                        lock (_threadLock)
+                        {
+                            _threadQueue.Enqueue(context);
+                        }
                     }
                 }
                 catch (ThreadAbortException)
-                {
-                }
+                { }
                 catch (Exception e)
                 {
                     Debug.LogError(e);
@@ -133,20 +139,72 @@ namespace extApi
             }
         }
 
-        private ApiRouteNode GetRouteNode(string route, bool create)
+        private void ProcessContext(HttpListenerContext context)
         {
-            return string.IsNullOrEmpty(route) ? _root : GetRouteNode(route.Split('/'), create, null);
+            var contextMethod = new HttpMethod(context.Request.HttpMethod);
+
+            var routeUri = context.Request.Url;
+            var routeParameters = new Dictionary<string, string>();
+            var target = GetRouteTarget(contextMethod, routeUri.Segments, routeParameters);
+            if (target != null)
+            {
+                try
+                {
+                    // TODO: Сделать дела. Либо перенаправлять вызов на мейн тред, либо выполнять с потоков.
+                    var result = target.Invoke(context, routeParameters); 
+                    
+                    context.Response.ContentType = "application/json";
+                    context.Response.StatusCode = (int)result.StatusCode;
+
+                    if (result.Result != null)
+                    {
+                        var json = JsonUtility.ToJson(result.Result, false);
+                        var jsonData = Encoding.UTF8.GetBytes(json);
+
+                        context.Response.ContentLength64 = jsonData.Length;
+                        context.Response.OutputStream.Write(jsonData);
+                        context.Response.OutputStream.Flush();
+                    }
+
+                    context.Response.Close();
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError(e);
+
+                    context.Response.ContentType = "application/json";
+                    context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                    context.Response.Close();
+                }
+            }
+            else
+            {
+                context.Response.ContentType = "application/json";
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                context.Response.Close();
+            }
         }
 
-        private ApiRouteNode GetRouteNode(string[] segments, bool create, Dictionary<string, string> parameters)
+        private ApiRouteNode CreateRouteNode(string route)
         {
-            if (segments[0] == "/" && segments.Length == 1)
+            return string.IsNullOrEmpty(route) ? _root : GetRouteNode(route.Split('/'), true, null);
+        }
+
+        private ApiRouteTarget GetRouteTarget(HttpMethod method, IReadOnlyList<string> segments, IDictionary<string, string> parameters)
+        {
+            var node = GetRouteNode(segments, false, parameters);
+            return node?.Methods.GetValueOrDefault(method);
+        }
+
+        private ApiRouteNode GetRouteNode(IReadOnlyList<string> segments, bool create, IDictionary<string, string> parameters)
+        {
+            if (segments[0] == "/" && segments.Count == 1)
                 return _root;
 
             var startIndex = segments[0] == "/" ? 1 : 0;
             var currentNode = _root;
 
-            for (var i = startIndex; i < segments.Length; i++)
+            for (var i = startIndex; i < segments.Count; i++)
             {
                 var name = segments[i].TrimEnd('/');
                 var node = currentNode.Nodes.Find(n => n.Name == name);
@@ -183,18 +241,6 @@ namespace extApi
             return currentNode;
         }
 
-        private ApiRouteTarget GetRouteTarget(HttpMethod method, string[] segments, Dictionary<string, string> parameters)
-        {
-            var node = GetRouteNode(segments, false, parameters);
-            return node?.Methods.GetValueOrDefault(method);
-        }
-        
-
-        public void Dispose()
-        {
-            _listener?.Stop();
-            _listenerCancellationSource.Cancel();
-            _listenerThread.Abort();
-        }
+        public void Dispose() => Close();
     }
 }
