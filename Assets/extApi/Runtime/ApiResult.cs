@@ -14,7 +14,5 @@ namespace extApi
 
         private ApiResult(HttpStatusCode statusCode) => StatusCode = statusCode;
         private ApiResult(HttpStatusCode statusCode, object result) : this(statusCode) => Result = result;
-
-        public override string ToString() => $"<{StatusCode}: {Result}>";
     }
 }
