@@ -61,14 +61,14 @@ _api.Listen(8080, IPAddress.Any, IPAddress.Loopback);
 public class ApiController
 {
         [ApiGet("vector/{x}/{y}/{z}")] // GET /api/vector/1/2.5/5
-	public ApiResult GetVector(float x, float y, float z)
+        public ApiResult GetVector(float x, float y, float z)
         {
 		return ApiResult.Ok(new Vector3(x, y, z));
         }
 
 
         [ApiPost("vector")] // POST /api/vector { "x": 1.0, "y": 2.5, "z": 5.0 }
-	public ApiResult GetVector([ApiBody] Vector vector)
+        public ApiResult GetVector([ApiBody] Vector vector)
         {
 		// TODO: ...
         }
