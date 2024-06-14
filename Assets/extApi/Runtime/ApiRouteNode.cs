@@ -3,7 +3,7 @@ using System.Net.Http;
 
 namespace extApi
 {
-    public class ApiRouteNode
+    internal class ApiRouteNode
     {
         public readonly string Name;
         public readonly List<ApiRouteNode> Nodes = new();
