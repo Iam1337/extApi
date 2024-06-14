@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Reflection;
@@ -31,7 +32,7 @@ namespace extApi
                 if (parameterInfo.GetCustomAttribute<ApiBodyAttribute>() == null)
                 {
                     args.Add(routeParameters.TryGetValue(parameterInfo.Name, out var value)
-                        ? TypeDescriptor.GetConverter(parameterType).ConvertFromString(value)
+                        ? TypeDescriptor.GetConverter(parameterType).ConvertFromString(null, CultureInfo.InvariantCulture, value)
                         : ApiUtils.CreateDefault(parameterInfo.ParameterType));
                 }
                 else
