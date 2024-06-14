@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/Iam1337/extApi/compare/v1.1.0...v1.2.0) (2024-06-14)
+
+
+### Features
+
+* update readme ([b1dbbc0](https://github.com/Iam1337/extApi/commit/b1dbbc065434f3bff8e4ec81ff449b834bfc3952))
+
 # [1.1.0](https://github.com/Iam1337/extApi/compare/v1.0.0...v1.1.0) (2024-06-14)
 
 
