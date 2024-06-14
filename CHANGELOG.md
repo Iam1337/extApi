@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/Iam1337/extApi/compare/v1.2.0...v1.2.1) (2024-06-14)
+
+
+### Bug Fixes
+
+* update readme ([8512039](https://github.com/Iam1337/extApi/commit/8512039fc2e8f75af5648211ca00d1146d5fc0b1))
+
 # [1.2.0](https://github.com/Iam1337/extApi/compare/v1.1.0...v1.2.0) (2024-06-14)
 
 
