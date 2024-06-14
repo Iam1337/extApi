@@ -28,7 +28,7 @@ Just copy the [Assets/extApi](Assets/extApi) folder into your Assets directory w
 
 Via [openupm-cli](https://github.com/openupm/openupm-cli):<br>
 ```
-openupm add com.iam1337.extosc
+openupm add com.iam1337.extapi
 ```
 
 Or if you don't have it, add the scoped registry to manifest.json with the desired dependency semantic version:
