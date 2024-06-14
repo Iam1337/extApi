@@ -3,7 +3,7 @@ using System;
 
 namespace extApi
 {
-    public static class ApiUtils
+    internal static class ApiUtils
     {
         public static string Combine(string uri1, string uri2) => $"{uri1.TrimEnd('/')}/{uri2.TrimStart('/')}";
 

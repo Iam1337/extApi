@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace extApi
 {
-    public class ApiRouteTarget
+    internal class ApiRouteTarget
     {
         public object Controller;
         public MethodInfo MethodInfo;
