@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/Iam1337/extApi/compare/v1.2.1...v1.2.2) (2024-06-14)
+
+
+### Bug Fixes
+
+* removed unused, changed visibility ([530fdbd](https://github.com/Iam1337/extApi/commit/530fdbdf6d73d3d256df9f95673e4922ba2db8d9))
+
 ## [1.2.1](https://github.com/Iam1337/extApi/compare/v1.2.0...v1.2.1) (2024-06-14)
 
 
