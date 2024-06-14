@@ -1,3 +1,15 @@
+# [1.1.0](https://github.com/Iam1337/extApi/compare/v1.0.0...v1.1.0) (2024-06-14)
+
+
+### Bug Fixes
+
+* conver invariant culture ([53e42f0](https://github.com/Iam1337/extApi/commit/53e42f0557bfe7305f6f04151d2a2c633d182e3a))
+
+
+### Features
+
+* added main thread support, added examples ([7636143](https://github.com/Iam1337/extApi/commit/7636143ead5b4efd17edb66c488fd5185f5961b9))
+
 # 1.0.0 (2024-06-13)
 
 
