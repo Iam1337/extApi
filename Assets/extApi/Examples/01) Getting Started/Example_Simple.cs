@@ -1,5 +1,4 @@
-﻿using System.Net;
-using extApi;
+﻿using extApi;
 using UnityEngine;
 
 public class Example_Simple : MonoBehaviour
@@ -10,7 +9,7 @@ public class Example_Simple : MonoBehaviour
     {
         _api = new Api();
         _api.AddController(new ExampleController());
-        _api.Listen(8080, IPAddress.Any, IPAddress.Loopback);
+        _api.Listen(8080);
     }
 
     private void OnDestroy()

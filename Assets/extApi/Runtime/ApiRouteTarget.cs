@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using UnityEngine;
 
@@ -11,28 +12,41 @@ namespace extApi
 {
     internal class ApiRouteTarget
     {
-        public object Controller;
-        public MethodInfo MethodInfo;
-        public ParameterInfo[] ParameterInfos;
+        private ApiCors _cors;
+        
+        private readonly ApiRouteNode _parent;
+        private readonly object _controller;
+        private readonly MethodInfo _methodInfo;
+        private readonly ParameterInfo[] _parameterInfos;
+
+
+        public ApiRouteTarget(ApiRouteNode parent, object controller, MethodInfo methodInfo)
+        {
+            _parent = parent;
+            _controller = controller;
+            _methodInfo = methodInfo;
+            _parameterInfos = methodInfo.GetParameters();
+        }
 
         public ApiResult Invoke(HttpListenerContext context, Dictionary<string, string> routeParameters)
         {
             var args = new List<object>();
 
-            if (Controller is IApiController apiController)
+            if (_controller is IApiController apiController)
             {
                 apiController.Context = context;
                 apiController.Request = context.Request;
                 apiController.Response = context.Response;
             }
 
-            foreach (var parameterInfo in ParameterInfos)
+            foreach (var parameterInfo in _parameterInfos)
             {
                 var parameterType = parameterInfo.ParameterType;
                 if (parameterInfo.GetCustomAttribute<ApiBodyAttribute>() == null)
                 {
                     args.Add(routeParameters.TryGetValue(parameterInfo.Name, out var value)
-                        ? TypeDescriptor.GetConverter(parameterType).ConvertFromString(null, CultureInfo.InvariantCulture, value)
+                        ? TypeDescriptor.GetConverter(parameterType)
+                            .ConvertFromString(null, CultureInfo.InvariantCulture, value)
                         : ApiUtils.CreateDefault(parameterInfo.ParameterType));
                 }
                 else
@@ -59,7 +73,7 @@ namespace extApi
                 }
             }
 
-            var resultBoxed = MethodInfo.Invoke(Controller, args.ToArray());
+            var resultBoxed = _methodInfo.Invoke(_controller, args.ToArray());
             if (resultBoxed != null)
             {
                 var resultType = resultBoxed.GetType();
@@ -73,6 +87,16 @@ namespace extApi
             }
 
             return ApiResult.Ok();
+        }
+
+        public void SetCors(ApiCors cors) => _cors = cors;
+
+        public bool HasCors() => _cors != null || (_parent?.HasCors() ?? false);
+
+        public void ApplyCors(HttpMethod method, HttpListenerContext context)
+        {
+            _cors?.ApplyCors(method, context);
+            _parent?.ApplyCors(method, context);
         }
     }
 }

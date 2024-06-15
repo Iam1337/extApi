@@ -94,6 +94,12 @@ public class ExampleController
         _apps.Remove(app);
         return ApiResult.Ok();
     }
+    
+    [ApiGet("vector/{x}/{y}/{z}")]
+    public ApiResult GetVector(float x, float y, float z)
+    {
+        return ApiResult.Ok(new Vector3(x, y, z));
+    }
 
     [Serializable]
     public class AppModel

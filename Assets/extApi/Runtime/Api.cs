@@ -6,19 +6,19 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace extApi
 {
     public class Api : IDisposable
     {
+        private bool _hasCors;
         private HttpListener _listener;
         private Thread _listenerThread;
         private CancellationTokenSource _listenerCancellationSource;
         private CancellationToken _listenerCancellationToken;
-
-        private readonly ApiRouteNode _root = new("/");
+        
+        private readonly ApiRouteNode _root = new("/", null);
         private readonly ThreadMode _threadMode;
         private readonly object _threadLock = new();
         private readonly Queue<HttpListenerContext> _threadQueue = new();
@@ -26,14 +26,13 @@ namespace extApi
         public Api() : this(ThreadMode.OtherThread) { }
         public Api(ThreadMode mode) => _threadMode = mode;
 
-        public void Listen(ushort port, params IPAddress[] addresses)
+        public void Listen(ushort port)
         {
             if (_listener != null)
                 throw new Exception("Already started");
 
             _listener = new HttpListener();
-            foreach (var address in addresses)
-                _listener.Prefixes.Add($"http://{address}:{port}/");
+            _listener.Prefixes.Add($"http://+:{port}/");
             _listener.Start();
 
             _listenerCancellationSource = new CancellationTokenSource();
@@ -78,16 +77,31 @@ namespace extApi
             if (controllerRouteAttributes.Any() == false)
                 throw new NullReferenceException(nameof(ApiRouteAttribute)); // No attribute
 
+            var corsAttribute = controllerType.GetCustomAttribute<ApiCorsAttribute>();
             var controllerMethods = controllerType
                 .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).ToList();
 
             foreach (var routeAttribute in controllerRouteAttributes)
             {
+                if (corsAttribute != null)
+                {
+                    var routeNode = CreateRouteNode(routeAttribute.Route);
+                    if (routeNode == null)
+                        throw new Exception("Route build failed");
+
+                    if (routeNode.HasCors())
+                        throw new Exception("Route already has cors");
+                    
+                    routeNode.SetCors(corsAttribute.GetCors());
+                }
+                
                 foreach (var controllerMethod in controllerMethods)
                 {
-                    var methodAttributes = controllerMethod.GetCustomAttributes<ApiMethodAttribute>(true).ToList();
+                    var methodAttributes = controllerMethod.GetCustomAttributes<ApiMethodAttribute>(false).ToList();
                     if (methodAttributes.Any() == false)
                         continue;
+
+                    corsAttribute = controllerMethod.GetCustomAttribute<ApiCorsAttribute>(false);
 
                     foreach (var methodAttribute in methodAttributes)
                     {
@@ -98,13 +112,14 @@ namespace extApi
 
                         if (routeNode.Methods.ContainsKey(methodAttribute.Method))
                             throw new Exception($"Path \"{routePath}\" already has \"{methodAttribute.Method}\" method");
-
-                        routeNode.Methods.Add(methodAttribute.Method, new ApiRouteTarget
-                        {
-                            Controller = controller,
-                            MethodInfo = controllerMethod,
-                            ParameterInfos = controllerMethod.GetParameters(),
-                        });
+                        
+                        var target = new ApiRouteTarget(routeNode, controller, controllerMethod);
+                        
+                        if (corsAttribute != null) 
+                            target.SetCors(corsAttribute.GetCors());
+                        
+                        routeNode.Methods.Add(methodAttribute.Method, target);
+                        
                     }
                 }
             }
@@ -150,9 +165,19 @@ namespace extApi
             {
                 try
                 {
-                    // TODO: Сделать дела. Либо перенаправлять вызов на мейн тред, либо выполнять с потоков.
-                    var result = target.Invoke(context, routeParameters); 
-                    
+                    if (target.HasCors())
+                    {
+                        target.ApplyCors(contextMethod, context);
+
+                        if (contextMethod == HttpMethod.Options)
+                        {
+                            context.Response.Close();
+                            return;
+                        }
+                    }
+
+                    var result = target.Invoke(context, routeParameters);
+                        
                     context.Response.ContentType = "application/json";
                     context.Response.StatusCode = (int)result.StatusCode;
 
@@ -212,10 +237,7 @@ namespace extApi
                 {
                     if (create)
                     {
-                        node = new ApiRouteNode(name);
-                        node.IsDynamic = name.StartsWith('{') && name.EndsWith('}');
-                        node.DynamicName = name.Trim('{', '}');
-
+                        node = new ApiRouteNode(name, currentNode);
                         currentNode.Nodes.Add(node);
                     }
                     else

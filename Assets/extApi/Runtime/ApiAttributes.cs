@@ -7,6 +7,23 @@ namespace extApi
     public class ApiBodyAttribute : Attribute
     { }
 
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+    public class ApiCorsAttribute : Attribute
+    {
+        public readonly string[] AllowOrigin;
+        public readonly string[] AllowHeaders;
+        public readonly string[] AllowMethods;
+        
+        public ApiCorsAttribute(string[] allowOrigin = default, string[] allowHeaders = default, string[] allowMethods = default)
+        {
+            AllowOrigin = allowOrigin;
+            AllowHeaders = allowHeaders;
+            AllowMethods = allowMethods;
+        }
+
+        internal ApiCors GetCors() => new(AllowOrigin, AllowHeaders, AllowMethods);
+    }
+    
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     public class ApiRouteAttribute : Attribute
     {
