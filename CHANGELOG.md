@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Iam1337/extApi/compare/v1.2.2...v1.3.0) (2024-09-26)
+
+
+### Features
+
+* moved to threads ([61cfc1b](https://github.com/Iam1337/extApi/commit/61cfc1b6c61c56a3dc3f39366cb039c87bb21e93))
+
 ## [1.2.2](https://github.com/Iam1337/extApi/compare/v1.2.1...v1.2.2) (2024-06-14)
 
 
