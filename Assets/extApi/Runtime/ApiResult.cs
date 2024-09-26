@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using UnityEngine;
 
 namespace extApi
 {
@@ -8,11 +9,12 @@ namespace extApi
         public static ApiResult Ok(object result) => new(HttpStatusCode.OK, result);
         public static ApiResult BadRequest() => new(HttpStatusCode.BadRequest);
         public static ApiResult NotFound() => new(HttpStatusCode.NotFound);
+        public static ApiResult InternalServerError() => new(HttpStatusCode.InternalServerError);
 
         public HttpStatusCode StatusCode { get; }
-        public object Result { get; }
+        public string Json { get; }
 
         private ApiResult(HttpStatusCode statusCode) => StatusCode = statusCode;
-        private ApiResult(HttpStatusCode statusCode, object result) : this(statusCode) => Result = result;
+        private ApiResult(HttpStatusCode statusCode, object result) : this(statusCode) => Json = JsonUtility.ToJson(result, false);
     }
 }
