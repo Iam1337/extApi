@@ -6,7 +6,6 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace extApi
@@ -14,14 +13,21 @@ namespace extApi
     public class Api : IDisposable
     {
         private HttpListener _listener;
+        private readonly ThreadMode _threadMode;
+        
         private Thread _listenerThread;
-        private CancellationTokenSource _listenerCancellationSource;
-        private CancellationToken _listenerCancellationToken;
+        private readonly object _listenerThreadLock = new();
+        private readonly Queue<ApiSession> _listenerThreadQueue = new();
+        
+        private Thread _responseThread;
+        private readonly object _responseThreadLock = new();
+        private readonly Queue<ApiSession> _responseThreadQueue = new();
+        
+        private CancellationTokenSource _cancellationSource;
+        private CancellationToken _cancellationToken;
 
         private readonly ApiRouteNode _root = new("/");
-        private readonly ThreadMode _threadMode;
-        private readonly object _threadLock = new();
-        private readonly Queue<HttpListenerContext> _threadQueue = new();
+
 
         public Api() : this(ThreadMode.OtherThread) { }
         public Api(ThreadMode mode) => _threadMode = mode;
@@ -36,13 +42,16 @@ namespace extApi
                 _listener.Prefixes.Add($"http://{address}:{port}/");
             _listener.Start();
 
-            _listenerCancellationSource = new CancellationTokenSource();
-            _listenerCancellationToken = _listenerCancellationSource.Token;
-            _listenerThread = new Thread(ListenProcess);
-            _listenerThread.Name = "extApi Thread";
+            _cancellationSource = new CancellationTokenSource();
+            _cancellationToken = _cancellationSource.Token;
+            
+            _listenerThread = new Thread(ListenProcess) { Name = "extApi Listen Thread" };
             _listenerThread.Start();
+
+            _responseThread = new Thread(ResponseProcess) { Name = "extApi Response Thread" };
+            _responseThread.Start();
         }
-        
+
         public void Update()
         {
             if (_threadMode != ThreadMode.MainThread)
@@ -50,14 +59,14 @@ namespace extApi
 
             while (true)
             {
-                var context = (HttpListenerContext) null;
-                lock (_threadLock)
+                var session = (ApiSession) null;
+                lock (_listenerThreadLock)
                 {
-                    if (!_threadQueue.TryDequeue(out context))
+                    if (!_listenerThreadQueue.TryDequeue(out session))
                         break;
                 }
 
-                ProcessContext(context);
+                ProcessSession(session);
             }
         }
 
@@ -65,10 +74,12 @@ namespace extApi
         {
             _listener?.Stop();
             _listener = null;
-            _listenerCancellationSource.Cancel();
-            _listenerCancellationSource = null;
+            _cancellationSource.Cancel();
+            _cancellationSource = null;
             _listenerThread.Abort();
             _listenerThread = null;
+            _responseThread.Abort();
+            _responseThread = null;
         }
 
         public void AddController(object controller)
@@ -94,7 +105,7 @@ namespace extApi
                         var routePath = ApiUtils.Combine(routeAttribute.Route, methodAttribute.Template);
                         var routeNode = CreateRouteNode(routePath);
                         if (routeNode == null)
-                            throw new Exception($"Route build failed");
+                            throw new Exception("Route build failed");
 
                         if (routeNode.Methods.ContainsKey(methodAttribute.Method))
                             throw new Exception($"Path \"{routePath}\" already has \"{methodAttribute.Method}\" method");
@@ -112,22 +123,48 @@ namespace extApi
 
         private void ListenProcess()
         {
-            while (!_listenerCancellationToken.IsCancellationRequested)
+            while (!_cancellationToken.IsCancellationRequested)
             {
                 try
                 {
                     var context = _listener.GetContext();
+                    var contextMethod = new HttpMethod(context.Request.HttpMethod);
 
-                    if (_threadMode == ThreadMode.OtherThread)
+                    var routeUri = context.Request.Url;
+                    var routeParameters = new Dictionary<string, string>();
+                    var target = GetRouteTarget(contextMethod, routeUri.Segments, routeParameters);
+                    if (target != null)
                     {
-                        ProcessContext(context); // TODO: Сделать асинхронный отлов. 
+                        try
+                        {
+                            var session = target.GetSession(context, routeParameters);
+
+                            if (_threadMode == ThreadMode.OtherThread)
+                            {
+                                ProcessSession(session); // TODO: Сделать асинхронный отлов. 
+                            }
+                            else
+                            {
+                                lock (_listenerThreadLock)
+                                {
+                                    _listenerThreadQueue.Enqueue(session);
+                                }
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogError(e);
+
+                            context.Response.ContentType = "application/json";
+                            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                            context.Response.Close();
+                        }
                     }
                     else
                     {
-                        lock (_threadLock)
-                        {
-                            _threadQueue.Enqueue(context);
-                        }
+                        context.Response.ContentType = "application/json";
+                        context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                        context.Response.Close();
                     }
                 }
                 catch (ThreadAbortException)
@@ -138,50 +175,76 @@ namespace extApi
                 }
             }
         }
-
-        private void ProcessContext(HttpListenerContext context)
+        
+        private void ResponseProcess()
         {
-            var contextMethod = new HttpMethod(context.Request.HttpMethod);
-
-            var routeUri = context.Request.Url;
-            var routeParameters = new Dictionary<string, string>();
-            var target = GetRouteTarget(contextMethod, routeUri.Segments, routeParameters);
-            if (target != null)
+            while (!_cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    // TODO: Сделать дела. Либо перенаправлять вызов на мейн тред, либо выполнять с потоков.
-                    var result = target.Invoke(context, routeParameters); 
+                    ApiSession session;
                     
-                    context.Response.ContentType = "application/json";
-                    context.Response.StatusCode = (int)result.StatusCode;
-
-                    if (result.Result != null)
+                    lock (_responseThreadLock)
                     {
-                        var json = JsonUtility.ToJson(result.Result, false);
-                        var jsonData = Encoding.UTF8.GetBytes(json);
-
-                        context.Response.ContentLength64 = jsonData.Length;
-                        context.Response.OutputStream.Write(jsonData);
-                        context.Response.OutputStream.Flush();
+                        if (!_responseThreadQueue.TryDequeue(out session))
+                            continue;
                     }
 
-                    context.Response.Close();
+                    session.Context.Response.ContentType = "application/json";
+                    session.Context.Response.StatusCode = (int)session.Result.StatusCode;
+
+                    if (session.Result.Json != null)
+                    {
+                        var json = session.Result.Json;
+                        var jsonData = Encoding.UTF8.GetBytes(json);
+
+                        session.Context.Response.ContentLength64 = jsonData.Length;
+                        session.Context.Response.OutputStream.Write(jsonData);
+                        session.Context.Response.OutputStream.Flush();
+                    }
+
+                    session.Context.Response.Close();
                 }
+                catch (ThreadAbortException)
+                { }
                 catch (Exception e)
                 {
                     Debug.LogError(e);
-
-                    context.Response.ContentType = "application/json";
-                    context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                    context.Response.Close();
                 }
             }
-            else
+        }
+
+        private void ProcessSession(ApiSession session)
+        {
+            try
             {
-                context.Response.ContentType = "application/json";
-                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                context.Response.Close();
+                var resultBoxed = session.MethodInfo.Invoke(session.Controller, session.Arguments);
+                if (resultBoxed != null)
+                {
+                    var resultType = resultBoxed.GetType();
+                    if (resultType == typeof(ApiResult) ||
+                        resultType.IsSubclassOf(typeof(ApiResult)))
+                    {
+                        session.Result = (ApiResult)resultBoxed;
+                    }
+                    else
+                    {
+                        session.Result = ApiResult.Ok(resultBoxed);
+                    }
+                }
+                else
+                {
+                    session.Result = ApiResult.Ok();
+                }
+            }
+            catch
+            {
+                session.Result = ApiResult.InternalServerError();
+            }
+
+            lock (_responseThreadLock)
+            {
+                _responseThreadQueue.Enqueue(session);
             }
         }
 

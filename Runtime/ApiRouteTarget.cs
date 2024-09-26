@@ -15,7 +15,7 @@ namespace extApi
         public MethodInfo MethodInfo;
         public ParameterInfo[] ParameterInfos;
 
-        public ApiResult Invoke(HttpListenerContext context, Dictionary<string, string> routeParameters)
+        public ApiSession GetSession(HttpListenerContext context, Dictionary<string, string> routeParameters)
         {
             var args = new List<object>();
 
@@ -59,20 +59,13 @@ namespace extApi
                 }
             }
 
-            var resultBoxed = MethodInfo.Invoke(Controller, args.ToArray());
-            if (resultBoxed != null)
+            return new ApiSession
             {
-                var resultType = resultBoxed.GetType();
-                if (resultType == typeof(ApiResult) ||
-                    resultType.IsSubclassOf(typeof(ApiResult)))
-                {
-                    return (ApiResult) resultBoxed;
-                }
-
-                return ApiResult.Ok(resultBoxed);
-            }
-
-            return ApiResult.Ok();
+                Controller = Controller,
+                MethodInfo = MethodInfo,
+                Context = context,
+                Arguments = args.ToArray()
+            };
         }
     }
 }
