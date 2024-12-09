@@ -130,6 +130,9 @@ namespace extApi
                     var context = _listener.GetContext();
                     var contextMethod = new HttpMethod(context.Request.HttpMethod);
 
+                    
+                    context.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                    
                     var routeUri = context.Request.Url;
                     var routeParameters = new Dictionary<string, string>();
                     var target = GetRouteTarget(contextMethod, routeUri.Segments, routeParameters);
