@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/Iam1337/extApi/compare/v1.3.0...v1.4.0) (2024-12-09)
+
+
+### Features
+
+* added base cors header ([7607917](https://github.com/Iam1337/extApi/commit/760791797a9c553d064008384d6391fbe7061c1b))
+
 # [1.3.0](https://github.com/Iam1337/extApi/compare/v1.2.2...v1.3.0) (2024-09-26)
 
 
