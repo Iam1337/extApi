@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/Iam1337/extApi/compare/v1.4.0...v1.4.1) (2024-12-10)
+
+
+### Bug Fixes
+
+* changed prefixes ([9acd546](https://github.com/Iam1337/extApi/commit/9acd546e8140d9b786ce89011f86e00d2e4aafb3))
+
 # [1.4.0](https://github.com/Iam1337/extApi/compare/v1.3.0...v1.4.0) (2024-12-09)
 
 
