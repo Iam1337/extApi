@@ -32,14 +32,13 @@ namespace extApi
         public Api() : this(ThreadMode.OtherThread) { }
         public Api(ThreadMode mode) => _threadMode = mode;
 
-        public void Listen(ushort port, params IPAddress[] addresses)
+        public void Listen(ushort port)
         {
             if (_listener != null)
                 throw new Exception("Already started");
 
             _listener = new HttpListener();
-            foreach (var address in addresses)
-                _listener.Prefixes.Add($"http://{address}:{port}/");
+            _listener.Prefixes.Add($"http://*:{port}/");
             _listener.Start();
 
             _cancellationSource = new CancellationTokenSource();
@@ -129,7 +128,6 @@ namespace extApi
                 {
                     var context = _listener.GetContext();
                     var contextMethod = new HttpMethod(context.Request.HttpMethod);
-
                     
                     context.Response.AddHeader("Access-Control-Allow-Origin", "*");
                     
