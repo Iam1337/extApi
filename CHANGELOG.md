@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/Iam1337/extApi/compare/v1.4.1...v1.4.2) (2025-05-16)
+
+
+### Bug Fixes
+
+* fixed example ([6778fae](https://github.com/Iam1337/extApi/commit/6778faed7a60782408da64a087bc704a315c2224))
+
 ## [1.4.1](https://github.com/Iam1337/extApi/compare/v1.4.0...v1.4.1) (2024-12-10)
 
 
