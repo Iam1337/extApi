@@ -1,7 +1,7 @@
 {
   "name": "com.iam1337.extapi",
   "displayName": "extApi",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "unity": "2022.1",
   "description": "extApi - Simple Api Server for Unity",
   "license": "MIT",
