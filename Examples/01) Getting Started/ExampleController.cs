@@ -16,7 +16,7 @@ public class ExampleController
         new() {Id = 2, Name = "App 3", Version = 4},
     };
 
-    [ApiGet("apps")]
+    [ApiGet("start")]
     public ApiResult GetAll()
     {
         Debug.LogFormat("[API] Thread: {0}, Get All Apps", Thread.CurrentThread.ManagedThreadId);

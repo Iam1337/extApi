@@ -1,5 +1,4 @@
-﻿using System.Net;
-using extApi;
+﻿using extApi;
 using UnityEngine;
 
 public class Example_MainThread : MonoBehaviour
@@ -10,7 +9,7 @@ public class Example_MainThread : MonoBehaviour
     {
         _api = new Api(ThreadMode.MainThread);
         _api.AddController(new ExampleController());
-        _api.Listen(8080, IPAddress.Any, IPAddress.Loopback);
+        _api.Listen(8080);
     }
 
     private void Update()
