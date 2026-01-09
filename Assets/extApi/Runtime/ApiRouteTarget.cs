@@ -42,13 +42,31 @@ namespace extApi
                         using var stream = context.Request.InputStream;
                         using var reader = new StreamReader(stream, context.Request.ContentEncoding);
 
-                        try
+                        var contentType = context.Request.ContentType;
+                        if (contentType != null)
                         {
-                            args.Add(JsonUtility.FromJson(reader.ReadToEnd(), parameterType));
+                            try
+                            {
+                                // TODO: Add new contentTypes
+                                if (contentType.StartsWith(ApiContentType.Application.Json, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    args.Add(JsonUtility.FromJson(reader.ReadToEnd(), parameterType)); // TODO: IJsonSerializer in Api
+                                }
+                                else
+                                {
+                                    Debug.LogWarning("Unsupported content type: " + contentType);
+                                    args.Add(ApiUtils.CreateDefault(parameterType));
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                Debug.LogError("Unable to parse content type: " + contentType + "\n" + e);
+                                args.Add(ApiUtils.CreateDefault(parameterType));
+                            }
                         }
-                        catch (Exception)
+                        else
                         {
-                            Debug.LogWarning("Unable to parse"); // TODO: More info
+                            Debug.LogWarning("Content type not found");
                             args.Add(ApiUtils.CreateDefault(parameterType));
                         }
                     }

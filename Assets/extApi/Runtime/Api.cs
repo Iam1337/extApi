@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using UnityEngine;
 
@@ -191,19 +190,7 @@ namespace extApi
                             continue;
                     }
 
-                    session.Context.Response.ContentType = "application/json";
-                    session.Context.Response.StatusCode = (int)session.Result.StatusCode;
-
-                    if (session.Result.Json != null)
-                    {
-                        var json = session.Result.Json;
-                        var jsonData = Encoding.UTF8.GetBytes(json);
-
-                        session.Context.Response.ContentLength64 = jsonData.Length;
-                        session.Context.Response.OutputStream.Write(jsonData);
-                        session.Context.Response.OutputStream.Flush();
-                    }
-
+                    session.Result.Apply(session.Context.Response);
                     session.Context.Response.Close();
                 }
                 catch (ThreadAbortException)

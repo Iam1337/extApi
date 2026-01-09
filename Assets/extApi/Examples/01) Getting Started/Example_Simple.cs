@@ -1,5 +1,4 @@
-﻿using System.Net;
-using extApi;
+﻿using extApi;
 using UnityEngine;
 
 public class Example_Simple : MonoBehaviour
