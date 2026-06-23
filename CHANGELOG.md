@@ -1,3 +1,10 @@
+## [1.4.3](https://github.com/Iam1337/extApi/compare/v1.4.2...v1.4.3) (2026-06-23)
+
+
+### Bug Fixes
+
+* removed unused scope registry and packages ([f5b3e8c](https://github.com/Iam1337/extApi/commit/f5b3e8cece9f29195cd3842b6ad7f27ee24454c7))
+
 ## [1.4.2](https://github.com/Iam1337/extApi/compare/v1.4.1...v1.4.2) (2025-05-16)
 
 
