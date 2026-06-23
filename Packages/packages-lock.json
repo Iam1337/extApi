@@ -31,22 +31,6 @@
       "dependencies": {},
       "url": "https://packages.unity.com"
     },
-    "ru.visuals.comfybridge.unity": {
-      "version": "1.5.8",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.nuget.newtonsoft-json": "3.2.1"
-      },
-      "url": "https://git.visuals.ru/api/packages/visuals/npm"
-    },
-    "ru.visuals.qrcodegenerator": {
-      "version": "1.0.4",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://git.visuals.ru/api/packages/visuals/npm"
-    },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
       "depth": 0,
